@@ -1,0 +1,424 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  ADOPTER
+  SHELTER_ADMIN
+  VOLUNTEER
+  SYSTEM_ADMIN
+}
+
+enum ShelterType {
+  SHELTER
+  NGO
+  VOLUNTEER_GROUP
+}
+
+enum ShelterMemberRole {
+  OWNER
+  STAFF
+  VOLUNTEER
+}
+
+enum Species {
+  DOG
+  CAT
+  BIRD
+  RABBIT
+  OTHER
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  UNKNOWN
+}
+
+enum AnimalSize {
+  SMALL
+  MEDIUM
+  LARGE
+}
+
+enum AnimalHealthStatus {
+  HEALTHY
+  TREATMENT
+  RECOVERING
+  SPECIAL_NEEDS
+  OBSERVATION
+}
+
+enum AnimalAdoptionStatus {
+  AVAILABLE
+  PENDING
+  ADOPTED
+  ON_HOLD
+}
+
+enum SpecialNeedType {
+  MEDICATION
+  DIET
+  DISABILITY
+  BEHAVIOR_SUPPORT
+  OTHER
+}
+
+enum MedicalRecordType {
+  CHECKUP
+  TREATMENT
+  SURGERY
+  ILLNESS
+  TEST_RESULT
+  OTHER
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum DonationType {
+  FOOD
+  MEDICINE
+  MONEY
+  ACCESSORY
+  OTHER
+}
+
+enum DonationStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+enum DeviceType {
+  ANDROID
+  IOS
+  WEB
+  OTHER
+}
+
+model User {
+  id                   String                     @id @default(uuid())
+  role                 UserRole
+  fullName             String
+  email                String                     @unique
+  phone                String?
+  passwordHash         String
+  birthDate            DateTime?
+  profileImageUrl      String?
+  isActive             Boolean                    @default(true)
+  isVerified           Boolean                    @default(false)
+  createdAt            DateTime                   @default(now())
+  updatedAt            DateTime                   @updatedAt
+  profile              UserProfile?
+  refreshTokens        RefreshToken[]
+  shelterMemberships   ShelterMember[]
+  createdAnimals       Animal[]                   @relation("AnimalCreatedBy")
+  applications         AdoptionApplication[]      @relation("ApplicantApplications")
+  reviewedApplications AdoptionApplication[]      @relation("ReviewerApplications")
+  applicationChanges   ApplicationStatusHistory[] @relation("ApplicationChangedBy")
+  favorites            Favorite[]
+  donations            Donation[]
+  notificationTokens   NotificationToken[]
+
+  @@index([role])
+  @@index([isActive])
+}
+
+model UserProfile {
+  id                     String   @id @default(uuid())
+  userId                 String   @unique
+  city                   String?
+  district               String?
+  housingType            String?
+  hasGarden              Boolean  @default(false)
+  hasOtherPets           Boolean  @default(false)
+  petExperienceLevel     String?
+  dailyAvailabilityHours Int?
+  notes                  String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Address {
+  id           String    @id @default(uuid())
+  country      String    @default("Türkiye")
+  city         String
+  district     String?
+  neighborhood String?
+  addressLine  String?
+  postalCode   String?
+  latitude     Decimal?  @db.Decimal(9, 6)
+  longitude    Decimal?  @db.Decimal(9, 6)
+  createdAt    DateTime  @default(now())
+  shelters     Shelter[]
+  animals      Animal[]
+
+  @@index([city, district])
+}
+
+model Shelter {
+  id          String         @id @default(uuid())
+  name        String
+  type        ShelterType
+  email       String?        @unique
+  phone       String?
+  description String?
+  addressId   String?
+  isVerified  Boolean        @default(false)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  address     Address?       @relation(fields: [addressId], references: [id], onDelete: SetNull)
+  members     ShelterMember[]
+  animals     Animal[]
+  donations   Donation[]
+
+  @@index([type])
+  @@index([isVerified])
+  @@index([addressId])
+}
+
+model ShelterMember {
+  id         String            @id @default(uuid())
+  shelterId  String
+  userId     String
+  memberRole ShelterMemberRole
+  createdAt  DateTime          @default(now())
+  shelter    Shelter           @relation(fields: [shelterId], references: [id], onDelete: Cascade)
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([shelterId, userId])
+  @@index([userId])
+  @@index([memberRole])
+}
+
+model Animal {
+  id                String               @id @default(uuid())
+  shelterId         String
+  createdByUserId   String
+  name              String
+  species           Species
+  breed             String?
+  gender            Gender               @default(UNKNOWN)
+  birthDate         DateTime?
+  estimatedAgeMonths Int?
+  size              AnimalSize?
+  color             String?
+  description       String?
+  healthStatus      AnimalHealthStatus   @default(OBSERVATION)
+  adoptionStatus    AnimalAdoptionStatus @default(AVAILABLE)
+  isNeutered        Boolean              @default(false)
+  isVaccinated      Boolean              @default(false)
+  isHouseTrained    Boolean              @default(false)
+  goodWithKids      Boolean?
+  goodWithDogs      Boolean?
+  goodWithCats      Boolean?
+  addressId         String?
+  publishedAt       DateTime?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  deletedAt         DateTime?
+  shelter           Shelter              @relation(fields: [shelterId], references: [id], onDelete: Cascade)
+  createdBy         User                 @relation("AnimalCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  address           Address?             @relation(fields: [addressId], references: [id], onDelete: SetNull)
+  images            AnimalImage[]
+  specialNeeds      AnimalSpecialNeed[]
+  medicalRecords    AnimalMedicalRecord[]
+  vaccinations      AnimalVaccination[]
+  applications      AdoptionApplication[]
+  favorites         Favorite[]
+  donations         Donation[]
+
+  @@index([shelterId])
+  @@index([createdByUserId])
+  @@index([species])
+  @@index([gender])
+  @@index([healthStatus])
+  @@index([adoptionStatus])
+  @@index([addressId])
+  @@index([species, adoptionStatus])
+  @@index([publishedAt])
+}
+
+model AnimalImage {
+  id        String   @id @default(uuid())
+  animalId  String
+  imageUrl  String
+  publicId  String?
+  isPrimary Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  animal    Animal   @relation(fields: [animalId], references: [id], onDelete: Cascade)
+
+  @@index([animalId])
+  @@index([animalId, isPrimary])
+}
+
+model AnimalSpecialNeed {
+  id          String          @id @default(uuid())
+  animalId    String
+  needType    SpecialNeedType
+  description String
+  createdAt   DateTime        @default(now())
+  animal      Animal          @relation(fields: [animalId], references: [id], onDelete: Cascade)
+
+  @@index([animalId])
+  @@index([needType])
+}
+
+model AnimalMedicalRecord {
+  id               String            @id @default(uuid())
+  animalId         String
+  recordDate       DateTime
+  recordType       MedicalRecordType
+  title            String
+  description      String?
+  veterinarianName String?
+  clinicName       String?
+  documentUrl      String?
+  createdAt        DateTime          @default(now())
+  animal           Animal            @relation(fields: [animalId], references: [id], onDelete: Cascade)
+
+  @@index([animalId])
+  @@index([recordDate])
+  @@index([recordType])
+}
+
+model AnimalVaccination {
+  id          String   @id @default(uuid())
+  animalId    String
+  vaccineName String
+  appliedDate DateTime
+  nextDueDate DateTime?
+  notes       String?
+  createdAt   DateTime @default(now())
+  animal      Animal   @relation(fields: [animalId], references: [id], onDelete: Cascade)
+
+  @@index([animalId])
+  @@index([animalId, nextDueDate])
+}
+
+model AdoptionApplication {
+  id                 String                     @id @default(uuid())
+  animalId           String
+  applicantUserId    String
+  reviewedByUserId   String?
+  status             ApplicationStatus          @default(PENDING)
+  message            String
+  housingType        String?
+  hasOtherPets       Boolean                    @default(false)
+  hasChildren        Boolean                    @default(false)
+  experienceWithPets String?
+  whyAdopt           String?
+  reviewNote         String?
+  appliedAt          DateTime                   @default(now())
+  reviewedAt         DateTime?
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+  animal             Animal                     @relation(fields: [animalId], references: [id], onDelete: Cascade)
+  applicant          User                       @relation("ApplicantApplications", fields: [applicantUserId], references: [id], onDelete: Cascade)
+  reviewer           User?                      @relation("ReviewerApplications", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+  history            ApplicationStatusHistory[]
+
+  @@index([animalId])
+  @@index([applicantUserId])
+  @@index([reviewedByUserId])
+  @@index([status])
+  @@index([animalId, status])
+  @@index([applicantUserId, status])
+}
+
+model ApplicationStatusHistory {
+  id              String            @id @default(uuid())
+  applicationId   String
+  oldStatus       ApplicationStatus?
+  newStatus       ApplicationStatus
+  changedByUserId String
+  note            String?
+  changedAt       DateTime          @default(now())
+  application     AdoptionApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  changedBy       User              @relation("ApplicationChangedBy", fields: [changedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([applicationId])
+  @@index([changedByUserId])
+  @@index([changedAt])
+}
+
+model Favorite {
+  id        String   @id @default(uuid())
+  userId    String
+  animalId  String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  animal    Animal   @relation(fields: [animalId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, animalId])
+  @@index([animalId])
+}
+
+model Donation {
+  id           String         @id @default(uuid())
+  userId       String
+  shelterId    String?
+  animalId     String?
+  donationType DonationType
+  amount       Decimal?       @db.Decimal(10, 2)
+  quantity     Int?
+  description  String?
+  status       DonationStatus @default(PENDING)
+  createdAt    DateTime       @default(now())
+  completedAt  DateTime?
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shelter      Shelter?       @relation(fields: [shelterId], references: [id], onDelete: SetNull)
+  animal       Animal?        @relation(fields: [animalId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([shelterId])
+  @@index([animalId])
+  @@index([donationType])
+  @@index([status])
+}
+
+model NotificationToken {
+  id         String     @id @default(uuid())
+  userId     String
+  deviceType DeviceType
+  fcmToken   String     @unique
+  isActive   Boolean    @default(true)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isActive])
+}
+
+// Notes
+// - Enforce valid adoption application status transitions in service logic and write ApplicationStatusHistory on every status change.
+// - Enforce that a donor targets at least one of shelterId or animalId, and that MONEY donations include amount while item donations include quantity as needed.
+// - Enforce at most one primary AnimalImage per animal in service logic.
+// - Enforce publication and listing filters for soft-deleted animals where deletedAt is not null.
+// - Enforce authorization rules for who can review applications, create shelters/animals, and manage shelter memberships.

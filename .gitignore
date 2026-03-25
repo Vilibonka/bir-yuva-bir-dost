@@ -1,0 +1,8 @@
+node_modules/
+.env
+dist/
+coverage/
+apps/backend/dist/
+apps/backend/src/generated/
+npm-debug.log*
+yarn-error.log*
