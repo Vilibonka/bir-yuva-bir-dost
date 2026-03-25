@@ -1,0 +1,24 @@
+{
+  "name": "bir-yuva-bir-dost",
+  "private": true,
+  "workspaces": [
+    "apps/backend"
+  ],
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
+  "scripts": {
+    "start:dev": "npm --prefix apps/backend run start:dev",
+    "prisma:generate": "prisma generate --config prisma.config.ts",
+    "prisma:migrate": "prisma migrate dev --name init --config prisma.config.ts",
+    "prisma:studio": "prisma studio --config prisma.config.ts",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:logs": "docker compose logs -f postgres"
+  },
+  "devDependencies": {
+    "dotenv": "^16.4.5",
+    "prisma": "^7.0.0"
+  }
+}
