@@ -26,7 +26,7 @@ docker -v
 docker compose version
 ```
 
-## Ilk gun kurulumu
+## İlk Sefer Kurulumu
 
 ### 1. `.env` dosyasini olustur
 
